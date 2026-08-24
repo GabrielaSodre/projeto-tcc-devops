@@ -18,4 +18,7 @@ jobs:
       - run: java --version
 
       - name: Install Dependencies
-        run: mvn install
+        run: mvn clean install
+        
+      - name: Package app
+        run: zip -r deployment.zip target/
