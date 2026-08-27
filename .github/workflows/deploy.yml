@@ -1,0 +1,34 @@
+name: Pipeline de Deploy e Teste
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. Acessa a AWS via SSH e atualiza o Docker
+      - name: Executar Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            docker pull seu-usuario/app-crud-java:latest
+            docker stop app-crud || true
+            docker rm app-crud || true
+            docker run -d --name app-crud -p 8080:8080 seu-usuario/app-crud-java:latest
+
+      # 2. Faz o teste HTTP simples (Smoke Test)
+      - name: Validar se a aplicacao esta de pe (Health Check)
+        run: |
+          sleep 10 # Espera o Spring Boot ligar
+          curl --fail http://${{ secrets.EC2_HOST }}:8080/actuator/health || exit 1
+
+      # 3. Opcional: Roda o teste de carga com K6
+      - name: Executar Teste de Carga K6
+        uses: grafana/k6-action@v0.3.1
+        with:
+          filename: k6-test.js
