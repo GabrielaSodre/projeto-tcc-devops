@@ -1,10 +1,8 @@
-name: CD - Build, Publish e Deploy
+name: CD - Deploy
 
-# Tres jeitos de rodar:
-# 1. Sozinho, quando o CI termina com sucesso na main.
-# 2. Pelo botao "Run workflow", com o campo "versao" vazio: sobe a versao atual da main.
-# 3. Pelo botao, com o campo "versao" preenchido: ROLLBACK.
-#    Nada e construido. A EC2 so baixa e sobe essa versao antiga.
+# Roda sozinho quando o CI passa, ou pelo botao "Run workflow".
+# No botao, preencher o campo "versao" faz ROLLBACK para esse hash.
+
 on:
   workflow_run:
     workflows: ["CI Pipeline"]
@@ -26,69 +24,12 @@ env:
   VERSAO: ${{ inputs.versao || github.event.workflow_run.head_sha || github.sha }}
 
 jobs:
-  # JOB TEMPORARIO aqui.
-  # Construir e publicar a imagem e responsabilidade do CI.
-  # Quando o CI adotar este job, apague-o daqui e deixe so o job "deploy".
-  build-and-push:
-    name: Construir e publicar imagem no ghcr.io
-    # Roda se o CI passou, ou no disparo manual sem versao.
-    # No rollback nao roda: a imagem antiga ja esta no ghcr.io.
-    if: >-
-      github.event.workflow_run.conclusion == 'success' ||
-      (github.event_name == 'workflow_dispatch' && inputs.versao == '')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: Baixar o codigo
-        uses: actions/checkout@v4
-        with:
-          # O commit exato da VERSAO. Sem isso, um push feito durante o CI
-          # faria este job construir um commit mais novo, que o CI nao testou.
-          ref: ${{ env.VERSAO }}
-
-      - name: Instalar Java 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-          cache: maven
-
-      - name: Empacotar o jar
-        # Sem testes aqui. Quem testa e o CI, e ele ja passou.
-        run: ./mvnw -B clean package -DskipTests
-
-      - name: Entrar no ghcr.io
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          # Token automatico do GitHub. Nao precisa criar secret.
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Construir e publicar a imagem
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          # A tag com o hash e a que o deploy usa, e e ela que permite o rollback.
-          # A "latest" so serve para quem quiser baixar a versao mais nova a mao.
-          tags: |
-            ${{ env.IMAGE }}:${{ env.VERSAO }}
-            ${{ env.IMAGE }}:latest
-
   deploy:
     name: Deploy na EC2
-    needs: build-and-push
-    # Roda depois de uma publicacao com sucesso, ou direto no rollback.
-    # O "!cancelled()" e obrigatorio: sem ele, o GitHub pula este job
-    # sempre que o build-and-push e pulado, e o rollback nunca rodaria.
+    # Roda quando o CI passou, ou quando alguem aperta o botao.
     if: >-
-      !cancelled() && (
-        needs.build-and-push.result == 'success' ||
-        (github.event_name == 'workflow_dispatch' && inputs.versao != '')
-      )
+      github.event.workflow_run.conclusion == 'success' ||
+      github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     env:
       CONTAINER: projetotcc
