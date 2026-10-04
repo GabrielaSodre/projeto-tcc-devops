@@ -23,6 +23,10 @@ env:
   # Ordem: versao digitada no rollback > commit que o CI testou > commit atual da main.
   VERSAO: ${{ inputs.versao || github.event.workflow_run.head_sha || github.sha }}
 
+concurrency:
+  group: deploy-ec2
+  cancel-in-progress: false
+
 jobs:
   deploy:
     name: Deploy na EC2
