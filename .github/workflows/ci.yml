@@ -20,11 +20,11 @@ jobs:
 
       - run: java --version
 
-      - name: Build with Maven
-        run: mvn clean install
-
       - name: Run Unit Tests
         run: mvn clean test
+
+      - name: Build with Maven
+        run: mvn package -DskipTests
 
       - name: Upload Test Reports
         uses: actions/upload-artifact@v4
