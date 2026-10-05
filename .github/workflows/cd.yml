@@ -57,6 +57,7 @@ jobs:
           echo "Versao que vai subir: $VERSAO"
 
       - name: Subir a versao via SSH
+        id: deploy
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -68,6 +69,7 @@ jobs:
           # e a versao antiga continua no ar.
           script: |
             set -e
+            docker inspect -f '{{.Config.Image}}' "$CONTAINER" > ~/versao-anterior || true
             docker pull "$IMAGE:$VERSAO"
             docker rm -f "$CONTAINER" || true
             docker run -d \
@@ -77,6 +79,7 @@ jobs:
               "$IMAGE:$VERSAO"
 
       - name: Health check
+        id: health
         # Spring Boot demora para subir. Tenta por 60s em vez de chutar um sleep.
         run: |
           for i in $(seq 1 12); do
@@ -89,6 +92,29 @@ jobs:
           done
           echo "A aplicacao nao respondeu em 60s."
           exit 1
+
+      - name: Rollback automatico
+        if: failure() && (steps.deploy.outcome == 'failure' || steps.health.outcome == 'failure')
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: CONTAINER
+          script: |
+            set -e
+            ANTERIOR=$(cat ~/versao-anterior)
+            if [ -z "$ANTERIOR" ]; then
+              echo "Nao existe versao anterior. Nada para voltar."
+              exit 1
+            fi
+            echo "Voltando para $ANTERIOR"
+            docker rm -f "$CONTAINER" || true
+            docker run -d \
+              --name "$CONTAINER" \
+              --restart unless-stopped \
+              -p 8080:8080 \
+              "$ANTERIOR"
 
       - name: Registrar a versao no resumo
         # Aparece na pagina do run. E de la que voce copia o hash para um rollback futuro.
