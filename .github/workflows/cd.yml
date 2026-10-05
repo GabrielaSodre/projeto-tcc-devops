@@ -1,5 +1,17 @@
 name: CD - Deploy
 
+# Titulo de cada run na lista do Actions. Tres casos:
+# - campo "versao" preenchido -> "ROLLBACK para <hash>"
+# - disparado pelo CI          -> "Deploy: <mensagem do commit>"
+# - botao com campo vazio      -> "Deploy manual da main"
+# O "a && b || c" funciona como um se/senao: se "a", usa "b"; senao, usa "c".
+run-name: >-
+  ${{
+    inputs.versao && format('ROLLBACK para {0}', inputs.versao) ||
+    github.event_name == 'workflow_run' && format('Deploy: {0}', github.event.workflow_run.head_commit.message) ||
+    'Deploy manual da main'
+  }}
+
 # Roda sozinho quando o CI passa, ou pelo botao "Run workflow".
 # No botao, preencher o campo "versao" faz ROLLBACK para esse hash.
 
