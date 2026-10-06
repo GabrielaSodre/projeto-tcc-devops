@@ -18,7 +18,9 @@ jobs:
       - name: Set up Java
         uses: actions/setup-java@v6
         with:
-          distribution: oracle
+          # Mesmo Java da imagem Docker (eclipse-temurin).
+          # Assim os testes rodam no mesmo Java que roda na EC2.
+          distribution: temurin
           java-version: '21'
 
       - run: java --version
