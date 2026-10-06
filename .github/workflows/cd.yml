@@ -26,6 +26,10 @@ on:
         description: "Rollback: hash completo do commit (40 caracteres). Deixe vazio para subir a versao atual."
         required: false
         default: ""
+      forcar:
+        description: "Marque para subir de novo a versao que ja esta no ar."
+        type: boolean
+        default: false
 
 env:
   # Nome fixo da imagem. O ghcr.io so aceita minusculas.
@@ -34,6 +38,8 @@ env:
   # A versao e o hash do commit. Cada imagem publicada recebe esse hash como tag.
   # Ordem: versao digitada no rollback > commit que o CI testou > commit atual da main.
   VERSAO: ${{ inputs.versao || github.event.workflow_run.head_sha || github.sha }}
+  # Caixa "forcar" do botao. Marcada = sobe de novo mesmo se a versao ja estiver no ar.
+  FORCAR: ${{ inputs.forcar }}
 
 concurrency:
   group: deploy-ec2
@@ -75,7 +81,7 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          envs: IMAGE,VERSAO,CONTAINER
+          envs: IMAGE,VERSAO,CONTAINER,FORCAR
           # O pull vem ANTES do rm de proposito.
           # Se a versao nao existir no ghcr.io, o pull falha, o "set -e" para o script
           # e a versao antiga continua no ar.
@@ -83,7 +89,7 @@ jobs:
             set -e
             docker inspect -f '{{.Config.Image}}' "$CONTAINER" > ~/versao-anterior || true
             NO_AR=$(cat ~/versao-anterior)
-            if [ "$NO_AR" = "$IMAGE:$VERSAO" ]; then
+            if [ "$NO_AR" = "$IMAGE:$VERSAO" ] && [ "$FORCAR" != "true" ]; then
               echo "A versao $VERSAO ja esta no ar. Nada a fazer."
               exit 0
             fi
@@ -143,3 +149,4 @@ jobs:
         run: |
           echo "### Versao no ar" >> "$GITHUB_STEP_SUMMARY"
           echo "\`$VERSAO\`" >> "$GITHUB_STEP_SUMMARY"
+
