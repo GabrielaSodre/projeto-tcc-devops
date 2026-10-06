@@ -167,3 +167,17 @@ jobs:
           echo "### Versao no ar" >> "$GITHUB_STEP_SUMMARY"
           echo "\`$VERSAO\`" >> "$GITHUB_STEP_SUMMARY"
 
+  teste-de-carga:
+    name: Teste de carga
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o script do k6
+        uses: actions/checkout@v7
+
+      - name: Instalar o k6
+        uses: grafana/setup-k6-action@v1
+
+      - name: Rodar o k6
+        run: k6 run -e HOST=${{ secrets.EC2_HOST }} k6/carga.js
+
