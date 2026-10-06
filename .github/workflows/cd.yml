@@ -117,6 +117,8 @@ jobs:
           exit 1
 
       - name: Rollback automatico
+        id: rollback
+        # Confere se a versao antiga voltou de verdade.
         if: failure() && (steps.deploy.outcome == 'failure' || steps.health.outcome == 'failure')
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -143,6 +145,21 @@ jobs:
               --restart unless-stopped \
               -p 8080:8080 \
               "$ANTERIOR"
+
+      - name: Health check do rollback
+        if: failure() && steps.rollback.outcome == 'success'
+        id: health_rollback
+        run: |
+          for i in $(seq 1 12); do
+            if curl -fsS "http://${{ secrets.EC2_HOST }}:8080/actuator/health"; then
+              echo "Aplicacao no ar."
+              exit 0
+            fi
+            echo "Tentativa $i falhou. Esperando 5s..."
+            sleep 5
+          done
+          echo "A aplicacao nao respondeu em 60s."
+          exit 1
 
       - name: Registrar a versao no resumo
         # Aparece na pagina do run. E de la que voce copia o hash para um rollback futuro.
