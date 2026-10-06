@@ -27,7 +27,7 @@ on:
         required: false
         default: ""
       forcar:
-        description: "Marque para subir de novo a versao que ja esta no ar."
+        description: "Forcar Deploy"
         type: boolean
         default: false
 
