@@ -76,7 +76,7 @@ jobs:
 
       - name: Subir a versao via SSH
         id: deploy
-        uses: appleboy/ssh-action@v1.2.0
+        uses: appleboy/ssh-action@7eaf76671a0d7eec5d98ee897acda4f968735a17 # v1.2.0
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
@@ -120,7 +120,7 @@ jobs:
         id: rollback
         # Confere se a versao antiga voltou de verdade.
         if: failure() && (steps.deploy.outcome == 'failure' || steps.health.outcome == 'failure')
-        uses: appleboy/ssh-action@v1.2.0
+        uses: appleboy/ssh-action@7eaf76671a0d7eec5d98ee897acda4f968735a17 # v1.2.0
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
@@ -173,10 +173,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Baixar o script do k6
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Instalar o k6
-        uses: grafana/setup-k6-action@v1
+        uses: grafana/setup-k6-action@43b9fc21641a76002687994433dd586f56e791b1 # v1.2.2
 
       - name: Rodar o k6
         run: k6 run -e HOST=${{ secrets.EC2_HOST }} k6/carga.js
