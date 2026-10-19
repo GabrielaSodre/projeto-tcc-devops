@@ -51,7 +51,7 @@ jobs:
           path: deployment.zip
 
       - name: Entrar no ghcr.io
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' # Dependabot
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
           registry: ghcr.io
