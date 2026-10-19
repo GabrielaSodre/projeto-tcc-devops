@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
   continuos-integration:
@@ -48,6 +51,7 @@ jobs:
           path: deployment.zip
 
       - name: Entrar no ghcr.io
+        if: github.event_name == 'push'
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
           registry: ghcr.io
@@ -59,7 +63,7 @@ jobs:
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
-          push: true
+          push: ${{ github.event_name == 'push' }}
           # A tag com o hash e a que o deploy usa, e e ela que permite o rollback.
           # A "latest" so serve para quem quiser baixar a versao mais nova a mao.
           tags: |
