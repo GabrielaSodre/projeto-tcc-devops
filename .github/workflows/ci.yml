@@ -22,7 +22,7 @@ jobs:
         run: pipx install semgrep==1.181.0
 
       - name: Rodar o Semgrep
-        run: semgrep scan --config p/java --config p/owasp-top-ten --metrics=auto --error --sarif-output=semgrep.sarif
+        run: semgrep scan --config p/java --config p/owasp-top-ten --metrics=off --error --sarif-output=semgrep.sarif
 
       - name: Enviar o SARIF para o GitHub
         if: always()
