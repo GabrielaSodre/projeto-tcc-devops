@@ -9,6 +9,20 @@ on:
       - main
 
 jobs:
+  sast:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Instalar o Semgrep
+        run: pipx install semgrep==1.181.0
+
+      - name: Rodar o Semgrep
+        run: semgrep scan --config p/java --config p/owasp-top-ten --metrics=off --error
+
   continuos-integration:
     runs-on: ubuntu-latest
     permissions:
