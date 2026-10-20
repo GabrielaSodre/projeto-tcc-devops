@@ -31,6 +31,7 @@ jobs:
           sarif_file: semgrep.sarif
 
   continuos-integration:
+    needs: sast
     runs-on: ubuntu-latest
     permissions:
       contents: read
