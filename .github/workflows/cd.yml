@@ -181,9 +181,3 @@ jobs:
       - name: Rodar o k6
         run: k6 run -e HOST=${{ secrets.EC2_HOST }} k6/carga.js
 
-              simular_falha:
-        description: "Ativar falha de saúde para testar rollback"
-        required: true
-        type: boolean
-        default: false
-
