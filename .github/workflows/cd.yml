@@ -46,6 +46,8 @@ env:
   VERSAO: ${{ inputs.versao || github.event.workflow_run.head_sha || github.sha }}
   # Caixa "forcar" do botao. Marcada = sobe de novo mesmo se a versao ja estiver no ar.
   FORCAR: ${{ inputs.forcar }}
+  # Ativar ou desativar a falha simulada
+  SIMULAR_FALHA: ${{ inputs.simular_falha || false }}
 
 concurrency:
   group: deploy-ec2
@@ -87,7 +89,7 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          envs: IMAGE,VERSAO,CONTAINER,FORCAR
+          envs: IMAGE,VERSAO,CONTAINER,FORCAR,SIMULAR_FALHA
           # O pull vem ANTES do rm de proposito.
           # Se a versao nao existir no ghcr.io, o pull falha, o "set -e" para o script
           # e a versao antiga continua no ar.
@@ -105,6 +107,7 @@ jobs:
               --name "$CONTAINER" \
               --restart unless-stopped \
               -p 8080:8080 \
+              -e APP_HEALTH_FAIL="$SIMULAR_FALHA" \
               "$IMAGE:$VERSAO"
 
       - name: Health check
@@ -150,6 +153,7 @@ jobs:
               --name "$CONTAINER" \
               --restart unless-stopped \
               -p 8080:8080 \
+              -e APP_HEALTH_FAIL=false \
               "$ANTERIOR"
 
       - name: Health check do rollback
