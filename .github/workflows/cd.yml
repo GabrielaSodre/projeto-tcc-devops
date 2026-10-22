@@ -31,6 +31,12 @@ on:
         type: boolean
         default: false
 
+        simular_falha:
+        description: "Ativar falha de saúde para testar rollback"
+        required: true
+        type: boolean
+        default: false
+
 env:
   # Nome fixo da imagem. O ghcr.io so aceita minusculas.
   # Se o repositorio mudar de dono ou de nome, mude aqui.
