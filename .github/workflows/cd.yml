@@ -20,19 +20,23 @@ on:
     workflows: ["CI Pipeline"]
     types: [completed]
     branches: [main]
+
   workflow_dispatch:
     inputs:
       versao:
-        description: "Rollback: hash completo do commit (40 caracteres). Deixe vazio para subir a versao atual."
+        description: "Hash completo do commit para rollback. Deixe vazio para usar a versao atual."
         required: false
+        type: string
         default: ""
+
       forcar:
         description: "Forcar Deploy"
+        required: true
         type: boolean
         default: false
 
-        simular_falha:
-        description: "Ativar falha de saúde para testar rollback"
+      simular_falha:
+        description: "Ativar falha de saude para testar rollback"
         required: true
         type: boolean
         default: false
