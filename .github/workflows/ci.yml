@@ -58,11 +58,19 @@ jobs:
 
       - run: java --version
 
+      - name: Run Unit Tests
+        # Roda os testes e gera o relatorio de cobertura do JaCoCo.
+        # O Sonar le esse relatorio no passo seguinte.
+        run: mvn -B verify
+
       - name: SonarCloud Scan
+        # PR do Dependabot nao recebe o SONAR_TOKEN: ele le de outro cofre de secrets.
+        # Sem o token, este passo falharia. O Sonar roda depois, no push do merge no main.
+        if: github.event.pull_request.user.login != 'dependabot[bot]'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          mvn -B verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
+          mvn -B org.sonarsource.scanner.maven:sonar-maven-plugin:sonar \
             -Dsonar.projectKey=projeto-tcc-devops \
             -Dsonar.organization=projetotccdevops \
             -Dsonar.qualitygate.wait=true
