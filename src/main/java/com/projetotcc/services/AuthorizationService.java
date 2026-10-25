@@ -22,10 +22,4 @@ public class AuthorizationService {
             return true;
         } else return false;
     }
-    public boolean authorizeTransaction2(User sander, BigDecimal value){
-        ResponseEntity<Map> authorizationResponse = restTemplate.getForEntity("https://util.devi.tools/api/v2/authorize", Map.class);
-        if (authorizationResponse.getStatusCode() == HttpStatus.OK && authorizationResponse.getBody().get("message") == "Autorizado"){
-            return true;
-        } else return false;
-    }
 }
