@@ -42,6 +42,7 @@ jobs:
       contents: read
       packages: write
       pull-requests: read
+      security-events: write
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -63,9 +64,23 @@ jobs:
         # O Sonar le esse relatorio no passo seguinte.
         run: mvn -B verify
 
+      - name: OWASP Dependency Check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: 'projeto-tcc-devops'
+          path: '.'
+          format: 'SARIF'
+          out: 'dependency-check-report'
+          args: >
+            --failOnCVSS 7
+
+      - name: Upload Dependency Check SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        with:
+          sarif_file: dependency-check-report/dependency-check-report.sarif
+
       - name: SonarCloud Scan
-        # PR do Dependabot nao recebe o SONAR_TOKEN: ele le de outro cofre de secrets.
-        # Sem o token, este passo falharia. O Sonar roda depois, no push do merge no main.
         if: github.event.pull_request.user.login != 'dependabot[bot]'
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
