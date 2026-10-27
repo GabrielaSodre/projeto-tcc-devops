@@ -67,27 +67,9 @@ jobs:
         run: mvn -B verify
 
       - name: OWASP Dependency Check
-        uses: dependency-check/Dependency-Check_Action@75ba02d6183445fe0761d26e836bde58b1560600
-        with:
-          project: 'projeto-tcc-devops'
-          path: '.'
-          format: 'SARIF'
-          args: >
-            --failOnCVSS 7
-            --nvdApiKey ${{ secrets.NVD_API_KEY }}
-
-      - name: Upload Dependency Check SARIF
-        if: always()
-        uses: github/codeql-action/upload-sarif@0fda7a646fd14a20daf520829ca1ae8847000819
-        with:
-          sarif_file: dependency-check-report/dependency-check-report.sarif
-
-      - name: Upload Dependency Check Report
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
-        with:
-          name: dependency-check-report
-          path: dependency-check-report/
+        run: mvn org.owasp:dependency-check-maven:check
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
 
       - name: SonarCloud Scan
         # PR do Dependabot nao recebe o SONAR_TOKEN: ele le de outro cofre de secrets.
