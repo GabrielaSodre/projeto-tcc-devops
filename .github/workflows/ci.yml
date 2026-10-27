@@ -72,11 +72,9 @@ jobs:
           project: 'projeto-tcc-devops'
           path: '.'
           format: 'SARIF'
-          out: 'dependency-check-report'
           args: >
             --failOnCVSS 7
-        env:
-          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+            --nvdApiKey ${{ secrets.NVD_API_KEY }}
 
       - name: Upload Dependency Check SARIF
         if: always()
