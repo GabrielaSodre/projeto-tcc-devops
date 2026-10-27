@@ -75,12 +75,17 @@ jobs:
           out: 'dependency-check-report'
           args: >
             --failOnCVSS 7
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
 
       - name: Upload Dependency Check SARIF
         if: always()
         uses: github/codeql-action/upload-sarif@0fda7a646fd14a20daf520829ca1ae8847000819
         with:
           sarif_file: dependency-check-report/dependency-check-report.sarif
+
+      - name: Dependency Check
+        run: mvn dependency-check:check
 
       - name: Upload Dependency Check Report
         if: always()
