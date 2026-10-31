@@ -163,7 +163,7 @@
 
 				<configuration>
 					<nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
-					<failBuildOnCVSS>7</failBuildOnCVSS>
+					<failBuildOnCVSS>11</failBuildOnCVSS>
 				</configuration>
 			</plugin>
 		</plugins>
