@@ -83,7 +83,7 @@ jobs:
         with:
           name: dependency-check-report
           path: target/
-          
+
       - name: Descobrir diretório do OWASP
         if: always()
         run: |
