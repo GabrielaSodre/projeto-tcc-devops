@@ -83,6 +83,11 @@ jobs:
         with:
           name: dependency-check-report
           path: target/
+          
+      - name: Descobrir diretório do OWASP
+        if: always()
+        run: |
+          find $HOME -type d | grep -i "dependency"
 
       - name: SonarCloud Scan
         # PR do Dependabot nao recebe o SONAR_TOKEN: ele le de outro cofre de secrets.
