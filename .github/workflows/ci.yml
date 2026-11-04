@@ -72,11 +72,6 @@ jobs:
           restore-keys: |
             dependency-check-data-
 
-      - name: Verificar tamanho da base de cache para o OWASP
-        if: always()
-        run: |
-          du -sh ~/.m2/repository/org/owasp/dependency-check-data
-
       - name: OWASP Dependency Check
         run: mvn org.owasp:dependency-check-maven:check
         env:
