@@ -72,6 +72,11 @@ jobs:
           restore-keys: |
             dependency-check-data-
 
+      - name: Verificar tamanho da base
+        if: always()
+        run: |
+          du -sh ~/.m2/repository/org/owasp/dependency-check-data
+
       - name: OWASP Dependency Check
         run: mvn org.owasp:dependency-check-maven:check
         env:
@@ -83,6 +88,17 @@ jobs:
         with:
           name: dependency-check-report
           path: target/
+
+      - name: Descobrir diretório do OWASP
+        if: always()
+        run: |
+          echo "=== Diretorios ==="
+          find $HOME -type d | grep -i "dependency"
+
+      - name: Verificar tamanho da base
+        if: always()
+        run: |
+          du -sh ~/.m2/repository/org/owasp/dependency-check-data
 
       - name: SonarCloud Scan
         # PR do Dependabot nao recebe o SONAR_TOKEN: ele le de outro cofre de secrets.
