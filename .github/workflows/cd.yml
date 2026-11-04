@@ -68,10 +68,21 @@ jobs:
     env:
       CONTAINER: projetotcc
     steps:
+      - name: Baixar o script do k6
+        # O k6 e preparado antes do deploy. Se isso falhar, nada subiu ainda.
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Instalar o k6
+        uses: grafana/setup-k6-action@43b9fc21641a76002687994433dd586f56e791b1 # v1.2.2
+
       - name: Conferir se os secrets existem
         # Falha com mensagem clara em vez de erro confuso de SSH.
+        # O secret entra como variavel de ambiente, nao colado no script.
+        # Assim o shell le o valor como texto, e nunca como comando.
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
-          if [ -z "${{ secrets.EC2_HOST }}" ]; then
+          if [ -z "$EC2_HOST" ]; then
             echo "Falta o secret EC2_HOST. Crie a instancia e cadastre os secrets."
             exit 1
           fi
@@ -105,11 +116,13 @@ jobs:
               echo "A versao $VERSAO ja esta no ar. Nada a fazer."
               exit 0
             fi
+            docker network inspect monitoramento >/dev/null 2>&1 || docker network create monitoramento
             docker pull "$IMAGE:$VERSAO"
             docker rm -f "$CONTAINER" || true
             docker run -d \
               --name "$CONTAINER" \
               --restart unless-stopped \
+              --network monitoramento \
               -p 8080:8080 \
               -e APP_HEALTH_FAIL="$SIMULAR_FALHA" \
               "$IMAGE:$VERSAO"
@@ -117,9 +130,11 @@ jobs:
       - name: Health check
         id: health
         # Spring Boot demora para subir. Tenta por 60s em vez de chutar um sleep.
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
           for i in $(seq 1 12); do
-            if curl -fsS "http://${{ secrets.EC2_HOST }}:8080/health"; then
+            if curl -fsS "http://$EC2_HOST:8080/health"; then
               echo "Aplicacao no ar."
               exit 0
             fi
@@ -129,10 +144,69 @@ jobs:
           echo "A aplicacao nao respondeu em 60s."
           exit 1
 
+      - name: Teste de carga (k6)
+        # Gera o trafego que o Prometheus vai julgar no passo seguinte.
+        # A hora de inicio marca o comeco da janela da consulta.
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+        run: |
+          echo "INICIO_K6=$(date +%s)" >> "$GITHUB_ENV"
+          k6 run -e HOST="$EC2_HOST" k6/carga.js
+
+      - name: Verificar as metricas no Prometheus
+        id: metricas
+        # Roda mesmo se o k6 falhar: quem decide o rollback e o Prometheus.
+        # So roda se a aplicacao subiu.
+        if: ${{ !cancelled() && steps.health.outcome == 'success' }}
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: INICIO_K6
+          # Mesmas consultas do painel da Grafana. Muda so a janela:
+          # do inicio do k6 ate agora, em vez de $__rate_interval.
+          script: |
+            set -e
+            # Espera duas coletas (5s cada) para o Prometheus ver o fim do k6.
+            sleep 10
+            JANELA="$(( $(date +%s) - INICIO_K6 ))s"
+            echo "Janela da consulta: $JANELA"
+
+            # Pergunta ao Prometheus e devolve so o numero da resposta.
+            consultar() {
+              curl -s -G http://127.0.0.1:9090/api/v1/query \
+                --data-urlencode "query=$1" \
+                | jq -r '.data.result[0].value[1] // "vazio"'
+            }
+
+            ERRO="(sum(rate(http_server_requests_seconds_count{job='projetotcc', status=~'5..'}[$JANELA])) or vector(0)) / sum(rate(http_server_requests_seconds_count{job='projetotcc'}[$JANELA]))"
+            P95="histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{job='projetotcc'}[$JANELA])))"
+
+            echo "Taxa de erro 5xx: $(consultar "$ERRO") (limite: 0.01)"
+            echo "Latencia p95: $(consultar "$P95") s (limite: 0.5)"
+
+            # "< bool" faz o Prometheus comparar: 1 = passou, 0 = falhou.
+            # Sem trafego a conta da NaN, e o "bool" devolve 0.
+            # So "1" mantem a versao. Qualquer outra resposta faz rollback.
+            ERRO_OK=$(consultar "$ERRO < bool 0.01")
+            P95_OK=$(consultar "$P95 < bool 0.5")
+
+            if [ "$ERRO_OK" != "1" ] || [ "$P95_OK" != "1" ]; then
+              echo "Metricas fora do limite ou sem dados. Vai fazer rollback."
+              exit 1
+            fi
+            echo "Metricas dentro do limite. A versao fica no ar."
+
       - name: Rollback automatico
         id: rollback
         # Confere se a versao antiga voltou de verdade.
-        if: failure() && (steps.deploy.outcome == 'failure' || steps.health.outcome == 'failure')
+        # Uma falha so do k6 nao entra aqui: ela deixa a execucao vermelha, sem rollback.
+        if: >-
+          failure() &&
+          (steps.deploy.outcome == 'failure' ||
+          steps.health.outcome == 'failure' ||
+          steps.metricas.outcome == 'failure')
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
         with:
           host: ${{ secrets.EC2_HOST }}
@@ -156,6 +230,7 @@ jobs:
             docker run -d \
               --name "$CONTAINER" \
               --restart unless-stopped \
+              --network monitoramento \
               -p 8080:8080 \
               -e APP_HEALTH_FAIL=false \
               "$ANTERIOR"
@@ -163,9 +238,11 @@ jobs:
       - name: Health check do rollback
         if: failure() && steps.rollback.outcome == 'success'
         id: health_rollback
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
           for i in $(seq 1 12); do
-            if curl -fsS "http://${{ secrets.EC2_HOST }}:8080/health"; then
+            if curl -fsS "http://$EC2_HOST:8080/health"; then
               echo "Aplicacao no ar."
               exit 0
             fi
@@ -177,21 +254,9 @@ jobs:
 
       - name: Registrar a versao no resumo
         # Aparece na pagina do run. E de la que voce copia o hash para um rollback futuro.
+        # Roda se a versao ficou no ar, mesmo com falha so do k6.
+        if: ${{ !cancelled() && steps.health.outcome == 'success' && steps.metricas.outcome == 'success' }}
         run: |
           echo "### Versao no ar" >> "$GITHUB_STEP_SUMMARY"
           echo "\`$VERSAO\`" >> "$GITHUB_STEP_SUMMARY"
-
-  teste-de-carga:
-    name: Teste de carga
-    needs: deploy
-    runs-on: ubuntu-latest
-    steps:
-      - name: Baixar o script do k6
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Instalar o k6
-        uses: grafana/setup-k6-action@43b9fc21641a76002687994433dd586f56e791b1 # v1.2.2
-
-      - name: Rodar o k6
-        run: k6 run -e HOST=${{ secrets.EC2_HOST }} k6/carga.js
 
