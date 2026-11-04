@@ -105,11 +105,13 @@ jobs:
               echo "A versao $VERSAO ja esta no ar. Nada a fazer."
               exit 0
             fi
+            docker network inspect monitoramento >/dev/null 2>&1 || docker network create monitoramento
             docker pull "$IMAGE:$VERSAO"
             docker rm -f "$CONTAINER" || true
             docker run -d \
               --name "$CONTAINER" \
               --restart unless-stopped \
+              --network monitoramento \
               -p 8080:8080 \
               -e APP_HEALTH_FAIL="$SIMULAR_FALHA" \
               "$IMAGE:$VERSAO"
@@ -156,6 +158,7 @@ jobs:
             docker run -d \
               --name "$CONTAINER" \
               --restart unless-stopped \
+              --network monitoramento \
               -p 8080:8080 \
               -e APP_HEALTH_FAIL=false \
               "$ANTERIOR"
