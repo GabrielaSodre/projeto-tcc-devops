@@ -77,8 +77,12 @@ jobs:
 
       - name: Conferir se os secrets existem
         # Falha com mensagem clara em vez de erro confuso de SSH.
+        # O secret entra como variavel de ambiente, nao colado no script.
+        # Assim o shell le o valor como texto, e nunca como comando.
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
-          if [ -z "${{ secrets.EC2_HOST }}" ]; then
+          if [ -z "$EC2_HOST" ]; then
             echo "Falta o secret EC2_HOST. Crie a instancia e cadastre os secrets."
             exit 1
           fi
@@ -126,9 +130,11 @@ jobs:
       - name: Health check
         id: health
         # Spring Boot demora para subir. Tenta por 60s em vez de chutar um sleep.
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
           for i in $(seq 1 12); do
-            if curl -fsS "http://${{ secrets.EC2_HOST }}:8080/health"; then
+            if curl -fsS "http://$EC2_HOST:8080/health"; then
               echo "Aplicacao no ar."
               exit 0
             fi
@@ -141,9 +147,11 @@ jobs:
       - name: Teste de carga (k6)
         # Gera o trafego que o Prometheus vai julgar no passo seguinte.
         # A hora de inicio marca o comeco da janela da consulta.
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
           echo "INICIO_K6=$(date +%s)" >> "$GITHUB_ENV"
-          k6 run -e HOST=${{ secrets.EC2_HOST }} k6/carga.js
+          k6 run -e HOST="$EC2_HOST" k6/carga.js
 
       - name: Verificar as metricas no Prometheus
         id: metricas
@@ -230,9 +238,11 @@ jobs:
       - name: Health check do rollback
         if: failure() && steps.rollback.outcome == 'success'
         id: health_rollback
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
         run: |
           for i in $(seq 1 12); do
-            if curl -fsS "http://${{ secrets.EC2_HOST }}:8080/health"; then
+            if curl -fsS "http://$EC2_HOST:8080/health"; then
               echo "Aplicacao no ar."
               exit 0
             fi
