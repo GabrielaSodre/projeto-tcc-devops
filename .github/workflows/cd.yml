@@ -176,13 +176,13 @@ jobs:
             P95="histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{job='projetotcc'}[$JANELA])))"
 
             echo "Taxa de erro 5xx: $(consultar "$ERRO") (limite: 0.01)"
-            echo "Latencia p95: $(consultar "$P95") s (limite: 0.5)"
+            echo "Latencia p95: $(consultar "$P95") s (limite: 0.001)"
 
             # "< bool" faz o Prometheus comparar: 1 = passou, 0 = falhou.
             # Sem trafego a conta da NaN, e o "bool" devolve 0.
             # So "1" mantem a versao. Qualquer outra resposta faz rollback.
             ERRO_OK=$(consultar "$ERRO < bool 0.01")
-            P95_OK=$(consultar "$P95 < bool 0.5")
+            P95_OK=$(consultar "$P95 < bool 0.001")
 
             if [ "$ERRO_OK" != "1" ] || [ "$P95_OK" != "1" ]; then
               echo "Metricas fora do limite ou sem dados. Vai fazer rollback."
