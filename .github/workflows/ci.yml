@@ -64,6 +64,37 @@ jobs:
         # O verify tambem gera o jar (fase package). Assim o jar testado e o mesmo que vai para a imagem.
         run: mvn -B verify
 
+      - name: Cache Dependency Check Data
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: ~/.m2/repository/org/owasp/dependency-check-data
+          key: dependency-check-data-${{ runner.os }}
+          restore-keys: |
+            dependency-check-data-
+
+      - name: Verificar tamanho da base de cache para o OWASP
+        if: always()
+        run: |
+          du -sh ~/.m2/repository/org/owasp/dependency-check-data
+
+      - name: OWASP Dependency Check
+        run: mvn org.owasp:dependency-check-maven:check
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+
+      - name: Upload OWASP Report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: dependency-check-report
+          path: target/
+
+      - name: Descobrir diretório do OWASP
+        if: always()
+        run: |
+          echo "=== Diretorios ==="
+          find $HOME -type d | grep -i "dependency"
+
       - name: SonarCloud Scan
         # PR do Dependabot nao recebe o SONAR_TOKEN: ele le de outro cofre de secrets.
         # Sem o token, este passo falharia. O Sonar roda depois, no push do merge no main.
