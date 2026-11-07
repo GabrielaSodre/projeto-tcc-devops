@@ -16,8 +16,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
 
       - name: Set up Java
         uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
@@ -31,7 +29,7 @@ jobs:
 
       - name: Run Unit Tests
         # Roda os testes e gera o relatorio de cobertura do JaCoCo.
-        # O Sonar le esse relatorio no passo seguinte.
+        # O Sonar le esse relatorio no job de seguranca, pelo artefato app-build.
         # O verify tambem gera o jar (fase package). Assim o jar testado e o mesmo que vai para a imagem.
         run: mvn -B verify
 
@@ -58,6 +56,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Historico completo: o Sonar usa o git blame para saber o que e codigo novo.
+          fetch-depth: 0
 
       - name: Instalar o Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
@@ -106,6 +107,14 @@ jobs:
         with:
           name: dependency-check-report
           path: target/dependency-check-report.html
+
+      - name: Baixar o build para o Sonar
+        # Este job roda em outra maquina, sem a pasta target/ do job de build.
+        # O Sonar precisa das classes compiladas e do jacoco.xml que estao nela.
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: app-build
+          path: target/
 
       - name: SonarCloud Scan
         # PR do Dependabot nao recebe o SONAR_TOKEN: ele le de outro cofre de secrets.
