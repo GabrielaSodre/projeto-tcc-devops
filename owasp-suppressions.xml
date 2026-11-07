@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+	Falsos positivos do OWASP Dependency-Check.
+	Cada supressao vale para um pacote e um CVE, sem versao.
+	Assim, um CVE novo nesses pacotes ainda aparece no relatorio.
+-->
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.3.xsd">
+	<suppress>
+		<notes>
+			O CVE e do Spring Tools (plugin de IDE para Eclipse e VS Code), nao da biblioteca spring-boot-devtools.
+			O OWASP confundiu os dois pelo CPE "vmware:spring_tools".
+		</notes>
+		<packageUrl regex="true">^pkg:maven/org\.springframework\.boot/spring-boot-devtools@.*$</packageUrl>
+		<cve>CVE-2022-31691</cve>
+	</suppress>
+	<suppress>
+		<notes>
+			O CVE e do Angus Mail (envio de e-mail por SMTP), nao do Angus Activation.
+			O OWASP confundiu os dois pelo CPE "eclipse:angus_mail".
+		</notes>
+		<packageUrl regex="true">^pkg:maven/org\.eclipse\.angus/angus-activation@.*$</packageUrl>
+		<cve>CVE-2025-7962</cve>
+	</suppress>
+	<suppress>
+		<notes>
+			O CVE e do servidor Prometheus (endpoint /api/v1/read), nao da biblioteca Java do Micrometer.
+			O OWASP confundiu os dois pelo CPE "prometheus:prometheus".
+			O servidor Prometheus da EC2 e a v3.15.1, que ja tem a correcao (3.11.3 ou mais nova).
+		</notes>
+		<packageUrl regex="true">^pkg:maven/io\.micrometer/micrometer-registry-prometheus@.*$</packageUrl>
+		<cve>CVE-2026-42154</cve>
+	</suppress>
+</suppressions>

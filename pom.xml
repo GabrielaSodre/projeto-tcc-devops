@@ -161,16 +161,20 @@
 					</execution>
 				</executions>
 			</plugin>
-            <plugin>
-                <groupId>org.owasp</groupId>
-                <artifactId>dependency-check-maven</artifactId>
-                <version>12.1.0</version>
-                <configuration>
-                    <nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
-                    <failBuildOnCVSS>11</failBuildOnCVSS>
-                    <ossindexAnalyzerEnabled>false</ossindexAnalyzerEnabled>
-                </configuration>
-            </plugin>
+			<plugin>
+				<groupId>org.owasp</groupId>
+				<artifactId>dependency-check-maven</artifactId>
+				<version>13.0.0</version>
+				<configuration>
+					<nvdApiKey>${env.NVD_API_KEY}</nvdApiKey>
+					<failBuildOnCVSS>11</failBuildOnCVSS>
+					<!-- Falsos positivos conferidos a mao. O motivo de cada um esta no arquivo. -->
+					<suppressionFiles>
+						<suppressionFile>owasp-suppressions.xml</suppressionFile>
+					</suppressionFiles>
+					<ossindexAnalyzerEnabled>false</ossindexAnalyzerEnabled>
+				</configuration>
+			</plugin>
 		</plugins>
 	</build>
 </project>
