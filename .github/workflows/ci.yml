@@ -9,34 +9,7 @@ on:
       - main
 
 jobs:
-  sast:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Instalar o Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: '3.12'
-
-      - name: Instalar o Semgrep
-        run: pip install -r .github/semgrep/requirements.txt
-
-      - name: Rodar o Semgrep
-        run: semgrep scan --config p/java --config p/owasp-top-ten --metrics=off --error --sarif-output=semgrep.sarif
-
-      - name: Enviar o SARIF para o GitHub
-        if: always()
-        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
-        with:
-          sarif_file: semgrep.sarif
-
-  continuos-integration:
-    needs: sast
+  Build_e_Testes_Unitarios:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -63,6 +36,49 @@ jobs:
         # O Sonar le esse relatorio no passo seguinte.
         # O verify tambem gera o jar (fase package). Assim o jar testado e o mesmo que vai para a imagem.
         run: mvn -B verify
+
+      - name: Upload app package
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: app-build
+          path: target/
+          if-no-files-found: error
+
+      - name: Upload Test Reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: test-reports
+          path: target/surefire-reports/
+
+  Seguranca_e_Qualidade_de_Codigo:
+    needs:  Build_e_Testes_Unitarios
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      pull-requests: read
+      security-events: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Instalar o Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Instalar o Semgrep
+        run: pip install -r .github/semgrep/requirements.txt
+
+      - name: Rodar o Semgrep
+        run: semgrep scan --config p/java --config p/owasp-top-ten --metrics=off --error --sarif-output=semgrep.sarif
+
+      - name: Enviar o SARIF para o GitHub
+        if: always()
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        with:
+          sarif_file: semgrep.sarif
 
       - name: Restaurar a base do OWASP
         # A key muda a cada execucao (run_id), entao nunca existe igual.
@@ -107,12 +123,22 @@ jobs:
             -Dsonar.organization=projetotccdevops \
             -Dsonar.qualitygate.wait=true
 
-      - name: Upload Test Reports
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: always()
+  Gerar_Artefatos_para_Publicacao:
+    needs: Seguranca_e_Qualidade_de_Codigo
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      pull-requests: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Download app package
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          name: test-reports
-          path: target/surefire-reports/
+          name: app-build
+          path: target/
 
       - name: Package app
         run: zip -r deployment.zip target/
