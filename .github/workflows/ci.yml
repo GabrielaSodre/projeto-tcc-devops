@@ -9,34 +9,7 @@ on:
       - main
 
 jobs:
-  sast:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Instalar o Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: '3.12'
-
-      - name: Instalar o Semgrep
-        run: pip install -r .github/semgrep/requirements.txt
-
-      - name: Rodar o Semgrep
-        run: semgrep scan --config p/java --config p/owasp-top-ten --metrics=off --error --sarif-output=semgrep.sarif
-
-      - name: Enviar o SARIF para o GitHub
-        if: always()
-        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
-        with:
-          sarif_file: semgrep.sarif
-
-  continuos-integration:
-    needs: sast
+  Build e Testes Unitários:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -63,6 +36,35 @@ jobs:
         # O Sonar le esse relatorio no passo seguinte.
         # O verify tambem gera o jar (fase package). Assim o jar testado e o mesmo que vai para a imagem.
         run: mvn -B verify
+
+  Segurança e Qualidade de Código:
+    needs: Build e Testes Unitários
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      pull-requests: read
+      security-events: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Instalar o Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Instalar o Semgrep
+        run: pip install -r .github/semgrep/requirements.txt
+
+      - name: Rodar o Semgrep
+        run: semgrep scan --config p/java --config p/owasp-top-ten --metrics=off --error --sarif-output=semgrep.sarif
+
+      - name: Enviar o SARIF para o GitHub
+        if: always()
+        uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
+        with:
+          sarif_file: semgrep.sarif
 
       - name: Restaurar a base do OWASP
         # A key muda a cada execucao (run_id), entao nunca existe igual.
@@ -114,6 +116,15 @@ jobs:
           name: test-reports
           path: target/surefire-reports/
 
+
+  Gerar Artefatos para Publicação:
+    needs: Segurança e Qualidade de Código
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      pull-requests: read
+    steps:
       - name: Package app
         run: zip -r deployment.zip target/
 
