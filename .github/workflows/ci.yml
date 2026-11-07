@@ -111,6 +111,7 @@ jobs:
           name: dependency-check-report
           path: target/dependency-check-report.html
 
+
       - name: SonarCloud Scan
         # PR do Dependabot nao recebe o SONAR_TOKEN: ele le de outro cofre de secrets.
         # Sem o token, este passo falharia. O Sonar roda depois, no push do merge no main.
