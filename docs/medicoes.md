@@ -12,3 +12,4 @@ Cada linha é uma execução do fluxo normal (CI, CD e troca do contêiner na EC
 - Medição 8 de 10 (10/11/2026)
 - Medição 9 de 10 (10/11/2026)
 - Medição 10 de 10 (10/11/2026)
+- Medição extra, no lugar da 1, descartada (10/11/2026)
